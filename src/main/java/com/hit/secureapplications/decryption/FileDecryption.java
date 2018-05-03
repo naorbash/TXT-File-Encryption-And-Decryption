@@ -37,6 +37,8 @@ public class FileDecryption {
 	private static String keyPairAlias;
 	private static String keyPairPassword;
 	private static String senderSelfSignedCertAliss;
+	private static String algorithm;
+	private static String algorithmProvider;
 	private static String configFilePath;
 	private static Cipher myCipher;
 	private static KeyStore keyStore;
@@ -52,8 +54,10 @@ public class FileDecryption {
 		keyPairAlias = arguments[3];
 		keyPairPassword = arguments[4];
 		senderSelfSignedCertAliss = arguments[5];
-		configFilePath = arguments[6];
-		fileToDecrypt = arguments[7];;
+		algorithm = arguments[6];
+		algorithmProvider = arguments[7];
+		configFilePath = arguments[8];
+		fileToDecrypt = arguments[9];;
 		
 	}
 
@@ -156,8 +160,7 @@ public class FileDecryption {
 		CipherInputStream cis = null;
 		FileInputStream encyptedDataFileReader = null;
 		try {
-			myCipher = Cipher.getInstance("AES//CBC//PKCS5Padding", "SunJCE");// add
-																				// provider?
+			myCipher = createCipher();
 			myCipher.init(Cipher.DECRYPT_MODE, semetricKey, new IvParameterSpec(iv));
 			encyptedDataFileReader = new FileInputStream(fileToDecrypt);
 			cis = new CipherInputStream(encyptedDataFileReader, myCipher);
@@ -169,13 +172,41 @@ public class FileDecryption {
 			}
 			return baos;
 		} catch (Exception e) {
-			writeToLog("Error: While trying to decrypt the data");
+			writeToLog("Error While trying to decrypt the data: " + e.getMessage());
 			LogWriter.close();
 			configurationFileReader.close();
 			throw new Exception("Error: While trying to decrypt the data", e);
 		} finally {
 			cis.close();
 			encyptedDataFileReader.close();
+		}
+	}
+	
+	
+	/**
+	 * This method returns an instance of Cipher according to the input giving for
+	 * algorithm and its provider
+	 * @return Cipher
+	 * @throws NoSuchAlgorithmException
+	 * @throws NoSuchProviderException
+	 * @throws NoSuchPaddingException
+	 */
+	private Cipher createCipher() throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException {
+		if (algorithmProvider != null && !(algorithmProvider.equals("")) && algorithm != null && !(algorithm.equals(""))) {
+			/* if there is an entered algorithm and its provider, 
+			 * return the Cipher's instance of it
+			 */
+			return Cipher.getInstance(algorithm, algorithmProvider);
+		} else if (algorithm != null && !(algorithm.equals(""))) {
+			/* if there is only algorithm entered,
+			 * return the Cipher's instance of it using default provider
+			 */
+			return Cipher.getInstance(algorithm);
+		} else {
+			/* if there is isn't an algorithm entered,
+			 * return an AES in CBC mode Cipher as default
+			 */
+			return Cipher.getInstance("AES//CBC//PKCS5Padding");
 		}
 	}
 
@@ -221,7 +252,7 @@ public class FileDecryption {
 			byte[] decryptedSymmetricKey = myCipher.doFinal(encryptedSymmetricKey);
 			return new SecretKeySpec(decryptedSymmetricKey, "AES");
 		} catch (Exception e) {
-			writeToLog("Error: While trying to decrypt the semetric-key");
+			writeToLog("Error While trying to decrypt the semetric-key: " + e.getMessage());
 			LogWriter.close();
 			configurationFileReader.close();
 			throw new Exception("Error: While trying to decrypt the semetric-key",e);

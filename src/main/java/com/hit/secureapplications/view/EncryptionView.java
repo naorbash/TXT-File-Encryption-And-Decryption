@@ -37,13 +37,14 @@ public class EncryptionView extends JFrame {
     private JPasswordField textPrivateKeyPassword = new JPasswordField(20);
     private JLabel ReceiverSelfSignedCertAlias = new JLabel("Enter The Reciver's Self Signed Certificate Alias: ");
     private JTextField textReceiverSelfSignedCertAlias = new JTextField(20);
-    private JLabel SymmetricKeyProvider = new JLabel("Enter an AES Provider(optional): ");
-    private JTextField textSymmetricKeyProvider = new JTextField(20);
+    private JLabel algorithm = new JLabel("Enter your algorithm in a transformation shape(optional): ");
+    private JTextField textAlgorithm = new JTextField(20);
+    private JLabel algorithmProvider = new JLabel("Enter your algorithm provider(optional): ");
+    private JTextField textAlgorithmProvider = new JTextField(20);
     private JLabel SecureRandomSeed = new JLabel("Enter A Seed(optional): ");
-    private JTextField textSecureRandomSeed = new JTextField(9);
+    private JPasswordField textSecureRandomSeed = new JPasswordField(20);
     private JLabel FileToEncryptPath = new JLabel("Enter A Full Path To The File To Be Encrypt: ");
     private JTextField textFileToEncryptPath = new JTextField(30);
-
     private JButton Encrypt = new JButton("Encrypt");
     private JButton chooseFile = new JButton("Browse...");
     private JButton chooseStore = new JButton("Browse...");
@@ -72,10 +73,12 @@ public class EncryptionView extends JFrame {
         constraints.gridy = 4;
         newPanel.add(ReceiverSelfSignedCertAlias, constraints);
         constraints.gridy = 5;
-        newPanel.add(SymmetricKeyProvider, constraints);
+        newPanel.add(algorithm, constraints);
         constraints.gridy = 6;
-        newPanel.add(SecureRandomSeed, constraints);
+        newPanel.add(algorithmProvider, constraints);
         constraints.gridy = 7;
+        newPanel.add(SecureRandomSeed, constraints);
+        constraints.gridy = 8;
         newPanel.add(FileToEncryptPath, constraints);
          
         //Text Fields adding
@@ -91,19 +94,21 @@ public class EncryptionView extends JFrame {
         constraints.gridy = 4;
         newPanel.add(textReceiverSelfSignedCertAlias, constraints);
         constraints.gridy = 5;
-        newPanel.add(textSymmetricKeyProvider, constraints);
+        newPanel.add(textAlgorithm, constraints);
         constraints.gridy = 6;
-        newPanel.add(textSecureRandomSeed, constraints);
+        newPanel.add(textAlgorithmProvider, constraints);
         constraints.gridy = 7;
+        newPanel.add(textSecureRandomSeed, constraints);
+        constraints.gridy = 8;
         newPanel.add(textFileToEncryptPath, constraints);
         
         //buttons adding
         constraints.gridx = 2;
         constraints.gridy = 0; 
         newPanel.add(chooseStore, constraints);
-        constraints.gridy = 7; 
+        constraints.gridy = 8; 
         newPanel.add(chooseFile, constraints);
-        constraints.gridy = 8;
+        constraints.gridy = 9;
         constraints.gridwidth = 2;
         newPanel.add(Encrypt, constraints);
         
@@ -194,8 +199,9 @@ public class EncryptionView extends JFrame {
 		String privateKeyAlias = textPrivateKeyAlias.getText().trim();
 		String privateKeyPassword = new String(textPrivateKeyPassword.getPassword()).trim();
 		String receiverSelfSignedCertAlias = textReceiverSelfSignedCertAlias.getText().trim();
-		String symmetricKeyProvider = textSymmetricKeyProvider.getText().trim();
-		String seed = textSecureRandomSeed.getText().trim();
+		String algorithm = textAlgorithm.getText().trim();
+		String algorithmProvider = textAlgorithmProvider.getText().trim();
+		String seed = new String(textSecureRandomSeed.getPassword()).trim();
 		String fileToEncryptPath = textFileToEncryptPath.getText().trim();
 		
 		if (keyStorePath.isEmpty() || keyStorePass.isEmpty() || keyStoreType.isEmpty() || privateKeyAlias.isEmpty()
@@ -211,27 +217,28 @@ public class EncryptionView extends JFrame {
 			if (new File(fileToEncryptPath).isFile()) {
 				if (new File(keyStorePath).isFile()) {
 					if (keyStoreTypeVerification(keyStoreType)) {
-						if(seedVerefication(seed)) {
-							if(providerVerification(symmetricKeyProvider)) {
-								return new String[]{keyStorePath,keyStorePass,keyStoreType,privateKeyAlias,privateKeyPassword,receiverSelfSignedCertAlias,symmetricKeyProvider,seed,fileToEncryptPath};
-							}else {
+						if (seedVerefication(seed)) {
+							if (providerVerification(algorithmProvider, algorithm)) {
+								return new String[] { keyStorePath, keyStorePass, keyStoreType, privateKeyAlias,
+										privateKeyPassword, receiverSelfSignedCertAlias, algorithm, algorithmProvider,
+										seed, fileToEncryptPath };
+							} else {
 								JOptionPane.showMessageDialog(this,
-										"The entered AES provider: \"" +symmetricKeyProvider+ "\" does not exist \\ does not support the AES algorithm."
-												+ "please try a diffrent one or leave empty.",
+										"The entered algorithm provider: \"" + algorithmProvider
+												+ "\" does not exist \\ can't be placed when algorithem field is empty.",
 										"Argument Error", JOptionPane.ERROR_MESSAGE);
 								return null;
 							}
-						}else {
+						} else {
 							JOptionPane.showMessageDialog(this,
-									"The seed entered: \"" +seed+ "\" is illegal, try a legal seed or leave empty",
+									"The seed entered: \"" + seed + "\" is illegal, try a legal seed or leave empty",
 									"Argument Error", JOptionPane.ERROR_MESSAGE);
 							return null;
 						}
-						
+
 					} else {
 						JOptionPane.showMessageDialog(this,
-								"The Key-Store type: " + keyStoreType
-										+ " is not supported,Please try a diffrent one.",
+								"The Key-Store type: " + keyStoreType + " is not supported,Please try a diffrent one.",
 								"Argument Error", JOptionPane.ERROR_MESSAGE);
 						return null;
 					}
@@ -255,17 +262,30 @@ public class EncryptionView extends JFrame {
 		}
 	}
     	
-	private boolean providerVerification(String symmetricKeyProvider) {
-		if(symmetricKeyProvider==null || symmetricKeyProvider.equals("")) {
+
+	/**
+	 * This method checks if a giving provider matches the giving algorithm
+	 * @param algorithmProvider
+	 * @param enteredAlgorithm
+	 * @return boolean
+	 */
+	private boolean providerVerification(String algorithmProvider,String enteredAlgorithm) {
+		//If there isn't an algorithm entered but there is a provider, return false.
+		if(enteredAlgorithm==null ||enteredAlgorithm.equals("")) {
+			if(algorithmProvider!=null &&!(algorithmProvider.equals(""))) {
+				return false;
+			}
+		//If there is isn't a provider, return true.
+		}if(algorithmProvider==null || algorithmProvider.equals("")) {
 			return true;
-		}
-		Provider enetredProvider = Security.getProvider(symmetricKeyProvider);
-		if(enetredProvider!=null) {
-			if(enetredProvider.getInfo().contains("AES")) {
-				return true;
+		}else {
+			//check If there is such provider 
+			Provider enetredProvider = Security.getProvider(algorithmProvider);
+			if(enetredProvider!=null) {
+					return true;
 			}
 		}
-		return false;
+		return false;	
 	}
 
 	/**
