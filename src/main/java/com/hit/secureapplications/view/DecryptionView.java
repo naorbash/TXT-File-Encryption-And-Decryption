@@ -34,9 +34,9 @@ private static final long serialVersionUID = 1L;
     private JLabel ReceiverSelfSignedCertAlias = new JLabel("Enter The Sender's Self Signed Certificate Alias: ");
     private JTextField textReceiverSelfSignedCertAlias = new JTextField(20);
     private JLabel configFilePathPath = new JLabel("Enter A Full Path To The Configuration File: ");
-    private JTextField textConfigFilePathPath = new JTextField(20);
+    private JTextField textConfigFilePathPath = new JTextField(30);
     private JLabel FileToEncryptPath = new JLabel("Enter A Full Path To The File To Be Decrypted: ");
-    private JTextField textFileToEncryptPath = new JTextField(20);
+    private JTextField textFileToEncryptPath = new JTextField(30);
 
     private JButton decrypt = new JButton("Decrypt");
     private JButton chooseFile = new JButton("Browse...");

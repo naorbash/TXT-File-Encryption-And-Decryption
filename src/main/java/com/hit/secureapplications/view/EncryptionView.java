@@ -6,6 +6,9 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.security.Provider;
+import java.security.Security;
+
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -34,8 +37,12 @@ public class EncryptionView extends JFrame {
     private JPasswordField textPrivateKeyPassword = new JPasswordField(20);
     private JLabel ReceiverSelfSignedCertAlias = new JLabel("Enter The Reciver's Self Signed Certificate Alias: ");
     private JTextField textReceiverSelfSignedCertAlias = new JTextField(20);
+    private JLabel SymmetricKeyProvider = new JLabel("Enter an AES Provider(optional): ");
+    private JTextField textSymmetricKeyProvider = new JTextField(20);
+    private JLabel SecureRandomSeed = new JLabel("Enter A Seed(optional): ");
+    private JTextField textSecureRandomSeed = new JTextField(9);
     private JLabel FileToEncryptPath = new JLabel("Enter A Full Path To The File To Be Encrypt: ");
-    private JTextField textFileToEncryptPath = new JTextField(20);
+    private JTextField textFileToEncryptPath = new JTextField(30);
 
     private JButton Encrypt = new JButton("Encrypt");
     private JButton chooseFile = new JButton("Browse...");
@@ -43,7 +50,7 @@ public class EncryptionView extends JFrame {
 
      
     public EncryptionView() {
-        super("JPanel Demo Program");
+        super("File Encryption Program");
          
         // create a new panel with GridBagLayout manager
         JPanel newPanel = new JPanel(new GridBagLayout());
@@ -65,6 +72,10 @@ public class EncryptionView extends JFrame {
         constraints.gridy = 4;
         newPanel.add(ReceiverSelfSignedCertAlias, constraints);
         constraints.gridy = 5;
+        newPanel.add(SymmetricKeyProvider, constraints);
+        constraints.gridy = 6;
+        newPanel.add(SecureRandomSeed, constraints);
+        constraints.gridy = 7;
         newPanel.add(FileToEncryptPath, constraints);
          
         //Text Fields adding
@@ -80,17 +91,20 @@ public class EncryptionView extends JFrame {
         constraints.gridy = 4;
         newPanel.add(textReceiverSelfSignedCertAlias, constraints);
         constraints.gridy = 5;
+        newPanel.add(textSymmetricKeyProvider, constraints);
+        constraints.gridy = 6;
+        newPanel.add(textSecureRandomSeed, constraints);
+        constraints.gridy = 7;
         newPanel.add(textFileToEncryptPath, constraints);
         
         //buttons adding
         constraints.gridx = 2;
         constraints.gridy = 0; 
         newPanel.add(chooseStore, constraints);
-        constraints.gridy = 5; 
+        constraints.gridy = 7; 
         newPanel.add(chooseFile, constraints);
-        constraints.gridy = 6;
+        constraints.gridy = 8;
         constraints.gridwidth = 2;
-        constraints.anchor = GridBagConstraints.CENTER;
         newPanel.add(Encrypt, constraints);
         
         Encrypt.addActionListener(new ActionListener() {
@@ -132,15 +146,15 @@ public class EncryptionView extends JFrame {
                 BorderFactory.createEtchedBorder(), "Encryption Details Panel"));
          
         // add the panel to this frame
-        add(newPanel);
+        this.add(newPanel);
          
-        pack();
+        this.pack();
         setLocationRelativeTo(null);
         this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
     }
 
 	private String openChooseFile() {
-		final JFileChooser fc = new JFileChooser();
+		JFileChooser fc = new JFileChooser();
 		fc.setCurrentDirectory(new File(System.getProperty("user.dir")));
 		int returnVal = fc.showOpenDialog(this);
 		if (returnVal == JFileChooser.APPROVE_OPTION) {
@@ -171,49 +185,66 @@ public class EncryptionView extends JFrame {
 
 	/**
      * This Function responsible to verify the argument giving by the user.
-     * @return
+     * @return textSymmetricKeyProvider
      */
 	public String[] verifayArgument() {
-		String KeyStorePath = textKeyStorePath.getText().trim();
-		String KeyStorePass = new String(textKeyStorePass.getPassword()).trim();
-		String KeyStoreType = KeyStorePath.substring(KeyStorePath.lastIndexOf(".") + 1).toUpperCase();
-		String PrivateKeyAlias = textPrivateKeyAlias.getText().trim();
-		String PrivateKeyPassword = new String(textPrivateKeyPassword.getPassword()).trim();
-		String ReceiverSelfSignedCertAlias = textReceiverSelfSignedCertAlias.getText().trim();
-		String FileToEncryptPath = textFileToEncryptPath.getText().trim();
+		String keyStorePath = textKeyStorePath.getText().trim();
+		String keyStorePass = new String(textKeyStorePass.getPassword()).trim();
+		String keyStoreType = keyStorePath.substring(keyStorePath.lastIndexOf(".") + 1).toUpperCase();
+		String privateKeyAlias = textPrivateKeyAlias.getText().trim();
+		String privateKeyPassword = new String(textPrivateKeyPassword.getPassword()).trim();
+		String receiverSelfSignedCertAlias = textReceiverSelfSignedCertAlias.getText().trim();
+		String symmetricKeyProvider = textSymmetricKeyProvider.getText().trim();
+		String seed = textSecureRandomSeed.getText().trim();
+		String fileToEncryptPath = textFileToEncryptPath.getText().trim();
 		
-		if (KeyStorePath.isEmpty() || KeyStorePass.isEmpty() || KeyStoreType.isEmpty() || PrivateKeyAlias.isEmpty()
-				|| PrivateKeyPassword.isEmpty() || ReceiverSelfSignedCertAlias.isEmpty()
-				|| FileToEncryptPath.isEmpty()) {
+		if (keyStorePath.isEmpty() || keyStorePass.isEmpty() || keyStoreType.isEmpty() || privateKeyAlias.isEmpty()
+				|| privateKeyPassword.isEmpty() || receiverSelfSignedCertAlias.isEmpty()
+				|| fileToEncryptPath.isEmpty()) {
 			JOptionPane.showMessageDialog(this,
 					"Some if the fields are left empty, Please fill out all the requested fields", "Argument Error",
 					JOptionPane.ERROR_MESSAGE);
 			return null;
 		}
 		
-		if (FileToEncryptPath.endsWith(".txt") || FileToEncryptPath.endsWith(".TXT")) {
-			if (new File(FileToEncryptPath).isFile()) {
-				if (new File(KeyStorePath).isFile()) {
-					if (KeyStoreType.equals("JKS") || KeyStoreType.equals("JCEKS") || KeyStoreType.equals("PKCS12")
-							|| KeyStoreType.equals("PKCS11") || KeyStoreType.equals("Windows-MY")||KeyStoreType.equals("BKS")) {
-						return new String[]{KeyStorePath,KeyStorePass,KeyStoreType,PrivateKeyAlias,PrivateKeyPassword,ReceiverSelfSignedCertAlias,FileToEncryptPath};
+		if (fileToEncryptPath.endsWith(".txt") || fileToEncryptPath.endsWith(".TXT")) {
+			if (new File(fileToEncryptPath).isFile()) {
+				if (new File(keyStorePath).isFile()) {
+					if (keyStoreTypeVerification(keyStoreType)) {
+						if(seedVerefication(seed)) {
+							if(providerVerification(symmetricKeyProvider)) {
+								return new String[]{keyStorePath,keyStorePass,keyStoreType,privateKeyAlias,privateKeyPassword,receiverSelfSignedCertAlias,symmetricKeyProvider,seed,fileToEncryptPath};
+							}else {
+								JOptionPane.showMessageDialog(this,
+										"The entered AES provider: \"" +symmetricKeyProvider+ "\" does not exist \\ does not support the AES algorithm."
+												+ "please try a diffrent one or leave empty.",
+										"Argument Error", JOptionPane.ERROR_MESSAGE);
+								return null;
+							}
+						}else {
+							JOptionPane.showMessageDialog(this,
+									"The seed entered: \"" +seed+ "\" is illegal, try a legal seed or leave empty",
+									"Argument Error", JOptionPane.ERROR_MESSAGE);
+							return null;
+						}
+						
 					} else {
 						JOptionPane.showMessageDialog(this,
-								"The Key-Store type: " + KeyStoreType
+								"The Key-Store type: " + keyStoreType
 										+ " is not supported,Please try a diffrent one.",
 								"Argument Error", JOptionPane.ERROR_MESSAGE);
 						return null;
 					}
 				} else {
 					JOptionPane.showMessageDialog(this,
-							"The Key-Store entered: " + KeyStorePath
+							"The Key-Store entered: " + keyStorePath
 									+ " is not a file,Please enter a qualified Key-Store path.",
 							"Argument Error", JOptionPane.ERROR_MESSAGE);
 					return null;
 				}
 			} else {
 				JOptionPane.showMessageDialog(this,
-						"The file entered: " + FileToEncryptPath + " is not a file,Please enter a qualified file path.",
+						"The file entered: " + fileToEncryptPath + " is not a file,Please enter a qualified file path.",
 						"Argument Error", JOptionPane.ERROR_MESSAGE);
 				return null;
 			}
@@ -224,6 +255,49 @@ public class EncryptionView extends JFrame {
 		}
 	}
     	
+	private boolean providerVerification(String symmetricKeyProvider) {
+		if(symmetricKeyProvider==null || symmetricKeyProvider.equals("")) {
+			return true;
+		}
+		Provider enetredProvider = Security.getProvider(symmetricKeyProvider);
+		if(enetredProvider!=null) {
+			if(enetredProvider.getInfo().contains("AES")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * If the entered key-store type is supported, return true
+	 * Otherwise, return false.
+	 * @param keyStoreType
+	 * @return
+	 */
+	private boolean keyStoreTypeVerification(String keyStoreType) {
+		if (keyStoreType.equals("JKS") || keyStoreType.equals("JCEKS") || keyStoreType.equals("PKCS12")
+				|| keyStoreType.equals("PKCS11") || keyStoreType.equals("Windows-MY") || keyStoreType.equals("BKS"))
+			return true;
+		return false;
+	}
+
+	/**
+	 * If the entered seed is empty or legal seed, return true.
+	 * Otherwise, return false
+	 * @param seed
+	 * @return boolean
+	 */
+	private boolean seedVerefication(String seed) {
+		if(seed!=null && !(seed.equals(""))){
+			try {
+				Long.parseLong(seed);
+			}catch(NumberFormatException e) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	public static void main(String[] args) {
 		  try {
 	            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());

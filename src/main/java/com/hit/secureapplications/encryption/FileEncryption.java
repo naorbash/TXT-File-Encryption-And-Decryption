@@ -20,6 +20,7 @@ import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -38,6 +39,8 @@ public class FileEncryption {
 	private static String keyPairPassword;
 	private static String receiverSelfSignedCertAlias;
 	private static String localWorkingDirectoryPath;
+	private static String symmetricKeyProvider;
+	private static String givingSecureRandomSeedText;
 	private static Cipher myCipher;
 	private static KeyStore keyStore;
 	private static BufferedWriter LogWriter;
@@ -49,8 +52,10 @@ public FileEncryption(String[] arguments){
 	keyStoreType = arguments[2];
 	keyPairAlias = arguments[3];
 	keyPairPassword = arguments[4];
-	receiverSelfSignedCertAlias = arguments[5];;
-	fileToEncryptPath = arguments[6];;
+	receiverSelfSignedCertAlias = arguments[5];
+	symmetricKeyProvider = arguments[6];
+	givingSecureRandomSeedText = arguments[7];
+	fileToEncryptPath = arguments[8];
 	}
 
 	/**
@@ -70,8 +75,14 @@ public FileEncryption(String[] arguments){
 		// Getting the receiver's public-key
 		writeToLog("Step 2: Getting the receiver's public-key");
 		Certificate receiverCert = keyStore.getCertificate(receiverSelfSignedCertAlias);
+		if(receiverCert==null) {
+			writeToLog("The entered certificate alias: \"" +receiverSelfSignedCertAlias+ "\" dose not exist in the keys store.");
+			LogWriter.close();
+			throw new Exception("The entered certificate alias: \"" +receiverSelfSignedCertAlias+ "\" dose not exist in the keys store.");
+		}
 		PublicKey receiverPublicKey = receiverCert.getPublicKey();
-
+		
+		
 		// Getting my private key in order to generate a signature
 		writeToLog("Step 3: Getting the encryptor's private-key");
 		PrivateKey myPrivateKey = getMyPrivateKey();
@@ -80,9 +91,15 @@ public FileEncryption(String[] arguments){
 		File fileToEncrrypt = new File(fileToEncryptPath);
 		if (fileToEncrrypt.exists() && !fileToEncrrypt.isDirectory() && fileToEncryptPath.endsWith(".txt")) {
 
-			//Generating a symmetric key
+			// Generating a symmetric key
 			writeToLog("Step 4: Generating a symmetric key");
-			KeyGenerator kg = KeyGenerator.getInstance("AES");// TODO -Add a provider?
+			KeyGenerator kg = null;
+			if (symmetricKeyProvider != null && !(symmetricKeyProvider.equals(""))) {
+				kg = KeyGenerator.getInstance("AES", symmetricKeyProvider);
+			} else {
+				writeToLog("Provider field is empty, generating an AES Key from a random provider");
+				kg = KeyGenerator.getInstance("AES");
+			}
 			SecretKey semetricKey = kg.generateKey();
 			
 			//Generating a random IV
@@ -90,14 +107,14 @@ public FileEncryption(String[] arguments){
 			byte[] iv = generateRandomIV();
 			
 			
-			//Initilatzing the cipher
+			//Initializing the cipher
 			writeToLog("Step 6: Initilatzing the cipher Object");
-			myCipher = Cipher.getInstance("AES//CBC//PKCS5Padding","SunJCE");// TODO -Add a provider?
+			myCipher = Cipher.getInstance("AES//CBC//PKCS5Padding");
 			myCipher.init(Cipher.ENCRYPT_MODE, semetricKey,new IvParameterSpec(iv));
 			
-			//Initilatzing the signature with my private-key
+			//Initializing the signature with my private-key
 			writeToLog("Step 7: Initilatzing the signature Object with the encryptor's private-key");
-			Signature dataSigner = Signature.getInstance("SHA256withRSA");// TODO -Add a provider?
+			Signature dataSigner = Signature.getInstance("SHA256withRSA");
 			dataSigner.initSign(myPrivateKey);
 
 			//Encrypting
@@ -114,7 +131,7 @@ public FileEncryption(String[] arguments){
 			byte[] encryptedSymmetricKey = encryptSymmetricKey(receiverPublicKey,semetricKey);
 			
 			
-			//Saving the IV, Encrypted Semetric-Key and Signature to the configurations file
+			//Saving the IV, Encrypted Symmetric-Key and Signature to the configurations file
 			writeToLog("Step 11: Saving the IV, Encrypted Semetric-Key and Signature to the configurations file ");
 			savingToConfigurationsFile(configurationFileOutputStream,iv,encryptedSymmetricKey,mySignature);
 			
@@ -171,9 +188,9 @@ public FileEncryption(String[] arguments){
 		try {
 			myKeyPair = keyStore.getKey(keyPairAlias, keyPairPassword.toCharArray());
 		} catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
-			writeToLog("The key: " + keyPairAlias + " is not a private-key");
+			writeToLog("The key: \"" + keyPairAlias + "\" cannot be recovered.");
 			LogWriter.close();
-			throw new Exception("The key: " + keyPairAlias + " is not a private-key",e);
+			throw new Exception("The key: \"" + keyPairAlias + "\" cannot be recovered.",e);
 		}
 		
 		PrivateKey myPrivateKey;
@@ -199,7 +216,7 @@ public FileEncryption(String[] arguments){
 		try {
 			fis = new FileInputStream(keyStorePath);
 			keyStore.load(fis, keyStorePass.toCharArray());
-		} catch (CertificateException e) {
+		} catch (CertificateException|IOException  e) {
 			writeToLog("Error while trying to load the key-store");
 			LogWriter.close();
 			throw new Exception("Error while trying to load the key-store", e);
@@ -243,9 +260,13 @@ public FileEncryption(String[] arguments){
 	 * This Private Method generates a random IV
 	 * dedicated for the Cipher 
 	 * @return byte[] - The IV byte array
+	 * @throws NoSuchAlgorithmException 
 	 */
-	private byte[] generateRandomIV() {
+	private byte[] generateRandomIV(){
 		SecureRandom rand = new SecureRandom();
+		if(givingSecureRandomSeedText!=null && !(givingSecureRandomSeedText.equals(""))){
+			rand.setSeed(Long.parseLong(givingSecureRandomSeedText));
+		}
 		byte[] iv = new byte[16];
 		rand.nextBytes(iv);
 		return iv;
@@ -267,7 +288,7 @@ public FileEncryption(String[] arguments){
 	 */
 	private byte[] encryptSymmetricKey(PublicKey receiverPublicKey, SecretKey semetricKey) throws Exception {
 		try{
-		myCipher = Cipher.getInstance("RSA");//TODO - Add a provider?
+		myCipher = Cipher.getInstance("RSA");
 		myCipher.init(Cipher.ENCRYPT_MODE, receiverPublicKey);
 		return myCipher.doFinal(semetricKey.getEncoded());
 		}catch(Exception e){

@@ -18,6 +18,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -73,6 +74,9 @@ public class FileDecryption {
 		// Loading the sender's certificate
 		writeToLog("Step 2: Getting the sender certificate");
 		Certificate senderCert = keyStore.getCertificate(senderSelfSignedCertAliss);
+		if(senderCert==null) {
+			logError("The entered certificate alias: \"" +senderSelfSignedCertAliss+ "\" dose not exist in the keys store.");
+		}
 
 		// Loading the reciver's private-key to decrypt the semetric key
 		writeToLog("Step 3: Getting the reciver's private-key");
@@ -83,12 +87,12 @@ public class FileDecryption {
 		byte[] iv = new byte[16];
 		if (configurationFileReader.read(iv) != -1) {
 
-			// Getting the encrypted semetric-key
+			// Getting the encrypted symmetric-key
 			writeToLog("Step 5: Getting the encrypted semetric-key");
 			byte[] encryptedSymmetricKey = new byte[256];
 			if (configurationFileReader.read(encryptedSymmetricKey) != -1) {
 
-				// Decrypting the semetric-key
+				// Decrypting the symmetric-key
 				writeToLog("Step 6: Decrypting the semetric-key");
 				SecretKey semetricKey = semetricKeyDecryption(myPrivateKey, encryptedSymmetricKey);
 
@@ -242,9 +246,9 @@ public class FileDecryption {
 		try {
 			myKeyPair = keyStore.getKey(keyPairAlias, keyPairPassword.toCharArray());
 		} catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
-			writeToLog("The key: " + keyPairAlias + " is not a private-key");
+			writeToLog("The key: \"" + keyPairAlias + "\" cannot be recovered.");
 			LogWriter.close();
-			throw new Exception("The key: " + keyPairAlias + " is not a private-key",e);
+			throw new Exception("The key: \"" + keyPairAlias + "\" cannot be recovered.",e);
 		}
 		
 		PrivateKey myPrivateKey;
@@ -268,7 +272,7 @@ public class FileDecryption {
 		try {
 			fis = new FileInputStream(keyStorePath);
 			keyStore.load(fis, keyStorePass.toCharArray());
-		} catch (Exception e) {
+		} catch (CertificateException|IOException e) {
 			writeToLog("Error while trying to load the key-store");
 			LogWriter.close();
 			configurationFileReader.close();
